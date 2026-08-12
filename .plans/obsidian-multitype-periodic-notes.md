@@ -141,13 +141,15 @@ export const DEFAULT_NOTE_TYPE: Omit<NoteTypeConfig, "id" | "name"> = Object.fre
 });
 
 /** Id must be command/hotkey/frontmatter-safe. Not user-editable once set. */
-export const NOTE_TYPE_ID_RE = /^[a-z0-9][a-z0-9-]*$/;
+export const NOTE_TYPE_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export function slug(name: string): string {
   return name.toLowerCase().trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
 ```
+
+> **Correction (Stage 1):** the regex is `/^[a-z0-9]+(?:-[a-z0-9]+)*$/` (word-joined-by-single-dashes), **not** `/^[a-z0-9][a-z0-9-]*$/`. The latter accepted a trailing dash (`-` is in the second char class), contradicting the test floor that `trail-` is rejected. The corrected form rejects leading/trailing/double dashes and uppercase while matching every `slug()` output. Plan and code are now consistent.
 
 **Decided:** all five granularities are supported now (`day|week|month|quarter|year`).
 No schema change needed later; the `DEFAULT_FORMATS` table already covers every
