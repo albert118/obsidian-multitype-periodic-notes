@@ -1,0 +1,12 @@
+{
+    // MD041/first-line-heading/first-line-h1: First line in a file should be a top-level heading
+    "MD041": false,
+    // MD013/line-length: Line length (80 expected)
+    "MD013": false,
+    // MD028/no-blanks-blockquote: Blank line inside blockquote
+    "MD028": false,
+    // MD010/no-hard-tabs: Hard tabs
+    "MD010": false,
+    // MD059/descriptive-link-text: Link text should be descriptive
+    "MD059": false,
+}

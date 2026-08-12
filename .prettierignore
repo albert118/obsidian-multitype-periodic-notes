@@ -1,0 +1,46 @@
+# Build and artifacts
+build
+dist
+bin
+
+*.tsbuildinfo
+.temp
+.cache
+
+# (Most) Editor directories and files
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# JavaScript
+node_modules
+auto-import.d.ts
+components.d.ts
+tsconfig*.json
+Scripts/*
+!Scripts/templater
+docker-compose.yml
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Metadata
+.gitignore
+.gitattributes
+.gitconfig
+.prettierignore
+CODEOWNERS
+
+# package lock file
+package*.json
+
+# Obsidian files + trash
+.obsidian
+.trash
+zotero-plugin/*
+templates/templater/*
