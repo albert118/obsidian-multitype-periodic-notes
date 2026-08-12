@@ -614,7 +614,12 @@ Remaining for kickoff:
    an existing note without stamping `type:`. If a hand-made note sits at
    `Work/<today>.md`, Dataview `type:` queries miss it. Decide: stamp-if-missing on
    open (idempotent) or document that only plugin-created notes carry `type:`.
-5. **`moment` in vitest:** the plan uses `window.moment()` (Obsidian-bundled; not
+5. **`moment` in vitest — RESOLVED (Stage 2).** `{{time}}` uses the **injected
+   `date`** (`date.format("HH:mm")`), not `window.moment()` — making
+   `applyTemplateTransformations` pure/testable. `Moment` is typed as a thin
+   structural `MomentLike { format(f): string }`. Note-paths use one shared
+   `resolveNotePath(folder, filename)` helper (reused by Stage 5's collision
+   guard). Was: `window.moment()` (Obsidian-bundled; not
    present in vitest). For offset/edge-case tests (Jan 31 → Feb 28, ISO-week year
    boundaries), either add `moment` as a dev dep matching Obsidian's bundled
    version, or test against a thin Moment-shaped interface. Decide before Stage 1
