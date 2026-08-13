@@ -43,7 +43,7 @@ the vault.
 
 - **Develop in your own repo, NOT inside the vault.** This matches the
   `obsidian-sample-plugin` docs: "Clone your repo to a local development folder"
-  (vault placement is only an *optional convenience*, not the requirement), and the
+  (vault placement is only an _optional convenience_, not the requirement), and the
   documented install is **"Copy over `main.js`, `styles.css`, `manifest.json` to
   your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`."**
 - **Critical for this user:** the vault is a **git-synced repo** (shared GitHub repo,
@@ -53,7 +53,7 @@ the vault.
   the notes vault.
 - **Test loop:** `npm run dev` (watch → `main.js`) in the dev repo → **copy**
   `main.js`, `manifest.json`, `styles.css` into `<vault>/.obsidian/plugins/
-  periodic-types/` → Obsidian "Reload plugin without saving" (or toggle) picks it
+periodic-types/` → Obsidian "Reload plugin without saving" (or toggle) picks it
   up. A small `copy` npm script (esbuild `onEnd` or a `Copy-Item` step) automates
   the copy so the watch loop stays one-command. Plain `Copy-Item` works across
   drives/volume and needs no admin — **no junction/symlink required**.
@@ -61,7 +61,7 @@ the vault.
   `.obsidian/plugins/periodic-types/` (`main.js`, `manifest.json`, `styles.css`,
   `data.json` runtime config) — which is normal vault config. Plugin source,
   tests, and `node_modules/` stay in the dev repo, never in the notes repo.
-  (`%APPDATA%\obsidian` is the *app* config dir, not where vaults live; vaults are
+  (`%APPDATA%\obsidian` is the _app_ config dir, not where vaults live; vaults are
   user-chosen folders.)
 
 **Tooling (verified vs `obsidianmd/obsidian-sample-plugin` master):** Node **20 LTS
@@ -103,49 +103,55 @@ periodic-types/
 ### Core data model
 
 **src/types.ts**
+
 ```ts
-export type Granularity = "day" | "week" | "month" | "quarter" | "year";
+export type Granularity = 'day' | 'week' | 'month' | 'quarter' | 'year';
 
 export interface NoteTypeConfig {
-  id: string;            // "work", "personal", "journal", ... unique
-  name: string;          // "Work" (human-facing, used in command/labels)
+  id: string; // "work", "personal", "journal", ... unique
+  name: string; // "Work" (human-facing, used in command/labels)
   enabled: boolean;
-  granularity: Granularity;  // "day" for now; future-proof for week/month/etc.
-  folder: string;        // "Work"
-  format: string;        // "YYYY-MM-DD"  → filename
-  templatePath: string;  // "Templates/work.md"
+  granularity: Granularity; // "day" for now; future-proof for week/month/etc.
+  folder: string; // "Work"
+  format: string; // "YYYY-MM-DD"  → filename
+  templatePath: string; // "Templates/work.md"
   openAtStartup: boolean;
   // future: color, ribbon icon, extra frontmatter
 }
 
-export interface PluginSettings { types: NoteTypeConfig[]; }
+export interface PluginSettings {
+  types: NoteTypeConfig[];
+}
 ```
 
 **src/constants.ts** — defaults per granularity (mirror Periodic Notes):
+
 ```ts
 export const DEFAULT_FORMATS: Record<Granularity, string> = Object.freeze({
-  day: "YYYY-MM-DD",
-  week: "gggg-[W]ww",
-  month: "YYYY-MM",
-  quarter: "YYYY-[Q]Q",
-  year: "YYYY",
+  day: 'YYYY-MM-DD',
+  week: 'gggg-[W]ww',
+  month: 'YYYY-MM',
+  quarter: 'YYYY-[Q]Q',
+  year: 'YYYY',
 });
 
-export const DEFAULT_NOTE_TYPE: Omit<NoteTypeConfig, "id" | "name"> = Object.freeze({
+export const DEFAULT_NOTE_TYPE: Omit<NoteTypeConfig, 'id' | 'name'> = Object.freeze({
   enabled: true,
-  granularity: "day",
-  folder: "",
-  format: "",           // falls back to DEFAULT_FORMATS[granularity]
-  templatePath: "",
+  granularity: 'day',
+  folder: '',
+  format: '', // falls back to DEFAULT_FORMATS[granularity]
+  templatePath: '',
   openAtStartup: false,
 });
 
 /** Id must be command/hotkey/frontmatter-safe. Not user-editable once set. */
 export const NOTE_TYPE_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export function slug(name: string): string {
-  return name.toLowerCase().trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 ```
 
@@ -161,7 +167,8 @@ granularity, so a weekly/monthly/etc. type is fully expressible from day one.
 **labels** (`Open today's ${id} note`), hotkey keys (`${pluginId}:${commandId}`), and
 frontmatter `type:` stable across renames, and prevents `/`, `:`, spaces, or uppercase
 in ids from producing ambiguous command ids or breaking the hotkey separator.
-```
+
+````
 
 ### utils.ts — the three MIT helpers (from Periodic Notes `src/utils.ts`)
 
@@ -174,8 +181,10 @@ in ids from producing ambiguous command ids or breaking the hotkey separator.
   .replace(/{{\s*date\s*}}/gi, filename)
   .replace(/{{\s*time\s*}}/gi, window.moment().format("HH:mm"))
   .replace(/{{\s*title\s*}}/gi, filename)
-  ```
-  Note: `{{date}}` becomes the already-formatted **filename**, matching PN behavior.
+````
+
+Note: `{{date}}` becomes the already-formatted **filename**, matching PN behavior.
+
 - `getNotePath(app, filename, type)`:
   `normalizePath(join(type.folder, filename + ".md"))`, then `ensureFolderExists`.
 - `ensureFolderExists(app, path)`: walk dirs (split "/", drop basename), create each
@@ -192,13 +201,12 @@ export default class PeriodicTypesPlugin extends Plugin {
   async onload() {
     await this.loadSettings();
     this.addSettingTab(new NoteTypeSettingTab(this.app, this));
-    this.configureCommands();   // OLD → remove diff, then add current (see below)
-    if (this.settings.types.some((t) => t.openAtStartup)) {
+    this.configureCommands(); // OLD → remove diff, then add current (see below)
+    if (this.settings.types.some(t => t.openAtStartup)) {
       this.registerEvent(
-        this.app.workspace.on("layout-ready", () => {
-          for (const t of this.settings.types)
-            if (t.enabled && t.openAtStartup) this.openNote(t, window.moment());
-        })
+        this.app.workspace.on('layout-ready', () => {
+          for (const t of this.settings.types) if (t.enabled && t.openAtStartup) this.openNote(t, window.moment());
+        }),
       );
     }
   }
@@ -227,7 +235,7 @@ export default class PeriodicTypesPlugin extends Plugin {
       if (this.registeredCommandIds.has(id)) continue;
       this.addCommand({
         id,
-        name: `Open today's ${t.id} note`,   // label derives from the immutable id
+        name: `Open today's ${t.id} note`, // label derives from the immutable id
         callback: async () => this.openNote(t, window.moment()),
       });
     }
@@ -244,7 +252,9 @@ export default class PeriodicTypesPlugin extends Plugin {
     this.registeredCommandIds = desired;
   }
 
-  offset(type, delta) { return window.moment().add(delta, type.granularity); }
+  offset(type, delta) {
+    return window.moment().add(delta, type.granularity);
+  }
 
   async openNote(type: NoteTypeConfig, date: Moment): Promise<void> {
     const filename = date.format(type.format || DEFAULT_FORMATS[type.granularity]);
@@ -261,18 +271,20 @@ export default class PeriodicTypesPlugin extends Plugin {
     // path is treated as this type's note — ensures `type:` is always present so
     // Dataview queries and future prune are reliable even for non-plugin-created files.
     await stampFrontmatterIfMissing(this.app, file, { type: type.id, date: filename });
-    const existing = this.app.workspace.getLeavesOfType("markdown")
-      .find((l) => l.getView()?.file?.path === file.path);
-    if (existing) { this.app.workspace.setActiveLeaf(existing); return; }
+    const existing = this.app.workspace.getLeavesOfType('markdown').find(l => l.getView()?.file?.path === file.path);
+    if (existing) {
+      this.app.workspace.setActiveLeaf(existing);
+      return;
+    }
     this.app.workspace.getLeaf(false).openFile(file);
   }
   async createNote(type, date, filename, destPath): Promise<TFile | null> {
     const raw = await getTemplateContents(this.app, type.templatePath);
     const body = applyTemplateTransformations(filename, date, raw);
     try {
-      const file = await this.app.vault.create(destPath, body);  // NOT createNewMarkdownFile
+      const file = await this.app.vault.create(destPath, body); // NOT createNewMarkdownFile
       await this.app.fileManager.processFrontMatter(file, fm => {
-        fm.type = type.id;                    // per-type queryability (Dataview)
+        fm.type = type.id; // per-type queryability (Dataview)
         fm.date = filename;
       });
       return file;
@@ -328,6 +340,7 @@ fires `onload`). Avoids popping every type whenever you toggle the dev plugin.
 ### settings.ts — the type registry UI
 
 `NoteTypeSettingTab extends PluginSettingTab` renders **one block per type**:
+
 - name (text), folder (text), format (`.addMomentFormat` — native live sample),
   template path (text, resolved via link semantics), granularity (dropdown),
   enabled (toggle), openAtStartup (toggle).
@@ -341,7 +354,7 @@ fires `onload`). Avoids popping every type whenever you toggle the dev plugin.
   no two enabled types may produce the **same rendered path** (this catches
   `Work` vs `Work/`, trailing-space formats, and same-folder same-rendered-name
   across granularities like a daily `YYYY-MM` vs a monthly `YYYY-MM`). Block with a
-  `Notice` naming the offenders. (Same-folder but *different* rendered names, e.g.
+  `Notice` naming the offenders. (Same-folder but _different_ rendered names, e.g.
   daily `YYYY-MM-DD` vs monthly `YYYY-MM`, are correctly allowed — filenames don't
   collide because the rendered formats differ.)
 - **Use ONE path-normalization helper everywhere.** The guard and `openNote`'s
@@ -359,6 +372,7 @@ fires `onload`). Avoids popping every type whenever you toggle the dev plugin.
 - Duplicate `id` guard on Add (slug collision → append counter).
 
 ### manifest.json
+
 ```json
 {
   "id": "periodic-types",
@@ -370,6 +384,7 @@ fires `onload`). Avoids popping every type whenever you toggle the dev plugin.
   "isDesktopOnly": false
 }
 ```
+
 Plugin folder must be named to match `id`.
 
 ## Registration model / extensibility
@@ -478,7 +493,7 @@ for when built (do NOT block current work):
 
 - **Prune command (specific)** — per-type retention (`retention?: number` days or
   "keep last N") plus a `prune-notes` command. When built: only notes with
-  `type: <id>` frontmatter; move to *trash* (`app.vault.trash(file, false)` →
+  `type: <id>` frontmatter; move to _trash_ (`app.vault.trash(file, false)` →
   `.trash/`, or `true` → system trash), never `vault.delete`; confirm via `Notice`
   before deleting. Fits the on-demand command model (no scheduling dependency).
 - **Scheduled auto-create (specific) — [REVISED] external trigger, not polling.**
@@ -489,10 +504,10 @@ for when built (do NOT block current work):
   scheduler / server hook.**
 
   **Config** stays per-type: `schedule?: { time?: string /*"HH:mm"*/; days?:
-  number[]; enabled?: boolean }`.
+number[]; enabled?: boolean }`.
 
   **One primitive (unchanged, the idempotency invariant):** `ensureCurrent(type,
-  now)` — compute the current period for `type.granularity`, derive the note path,
+now)` — compute the current period for `type.granularity`, derive the note path,
   and if the file **does not exist** and the make-ready gate passes, create it. The
   **file-existence check IS the idempotency** — shared by every trigger (external
   hook, `openAtStartup` catch-up, manual "Open today"), so no source can double-
@@ -561,17 +576,17 @@ for when built (do NOT block current work):
 
   **LOCKED — server delivery model (direct shim, no logic in it, keep minimal):**
   - A **local delivery shim** maps inbound HTTP requests → the `obsidian://`
-    proto, because `obsidian://` URIs are delivered by the *local OS* — a remote
+    proto, because `obsidian://` URIs are delivered by the _local OS_ — a remote
     caller cannot POST a `obsidian://` URI over HTTP. The shim is **expected and
     valid infra**: a ~10-line local HTTP endpoint (or systemd socket) that, on a
     hit for `action=ensure&type=<id>`, runs
-    `open "obsidian://periodic-types?action=ensure&type=work"` *on the server*, and
+    `open "obsidian://periodic-types?action=ensure&type=work"` _on the server_, and
     nothing else. **No business logic in the shim** — it is a dumb HTTP→URI
     translator. The plugin still handles the URI via `registerObsidianUriHandler`
     → `ensureCurrent`. (Local REST API is the only-alternative trigger; not
     required given the shim.)
   - **Scheduling is a server-side concern** (cron/systemd timer, or an upstream
-    scheduler) — it owns *when* to fire and calls the shim; neither the shim nor
+    scheduler) — it owns _when_ to fire and calls the shim; neither the shim nor
     the plugin holds the schedule.
   - **Vault sync is already a known, solved concern:** devices already align notes
     via a **shared Git(Hub) repo** (partly manual). A **GH PAT already exists** for
@@ -620,6 +635,7 @@ collision guard (normalized rendered path, shared path helper), PN-coexistence
 global picker).
 
 Remaining for kickoff:
+
 1. Template tokens: only `{{date}}/{{time}}/{{title}}`, or full Templater/core
    Templates syntax? Templater → feature-detect path.
 2. Template path storage: absolute vault path vs note-link — mirror
@@ -664,37 +680,39 @@ codemirror/lezer, builtinModules) is easy to get wrong by hand.
 repo + NTFS directory junction. See Repository/location.
 
 **Checklist:**
-1. `node -v` ≥ 20 — else install Node 20 LTS first. *Checkpoint: prints v20+.*
-2. Create plugin folder (primary or fallback location). *Checkpoint: exists, empty.*
+
+1. `node -v` ≥ 20 — else install Node 20 LTS first. _Checkpoint: prints v20+._
+2. Create plugin folder (primary or fallback location). _Checkpoint: exists, empty._
 3. Scaffold from sample-plugin (clone, Copy-Item, remove `_tmp`/`.git`).
-   *Checkpoint: package.json, manifest.json, tsconfig.json, esbuild.config.mjs,
-   version-bump.mjs, eslint config present.*
+   _Checkpoint: package.json, manifest.json, tsconfig.json, esbuild.config.mjs,
+   version-bump.mjs, eslint config present._
 4. Edit `manifest.json`: `id "periodic-types"`, `name "Periodic note types"`,
    `version "0.0.1"`, `minAppVersion "1.7.2"`, `isDesktopOnly false`, `author ""`.
-   Folder must match `id` exactly. *Checkpoint: valid JSON.*
+   Folder must match `id` exactly. _Checkpoint: valid JSON._
 5. Edit `package.json`: name `periodic-types`, `"engines": { "node": ">=20" }`.
-   *Checkpoint: valid JSON.*
+   _Checkpoint: valid JSON._
 6. Create `versions.json` stub `{ "0.0.1": "1.7.2" }` (keep or drop `version` npm
-   script per publish decision). *Checkpoint: file exists.*
+   script per publish decision). _Checkpoint: file exists._
 7. Replace `src/main.ts` with a **stub** (no-op, just proves load):
-   `onload() { new Notice("periodic-types: env ok"); }`. *Checkpoint: compiles.*
-8. `npm install`. *Checkpoint: node_modules populated; `npm ls esbuild typescript`.*
+   `onload() { new Notice("periodic-types: env ok"); }`. _Checkpoint: compiles._
+8. `npm install`. _Checkpoint: node_modules populated; `npm ls esbuild typescript`._
 9. `npm i -D vitest`; add scripts `test`/`test:watch`; create `vitest.config.ts`
-   (node env, `tests/**/*.spec.ts`). *Checkpoint: `npm test` runs, 0 tests, no error.*
+   (node env, `tests/**/*.spec.ts`). _Checkpoint: `npm test` runs, 0 tests, no error._
 10. Throwaway harness test `tests/smoke.spec.ts` (a `2+2` asserts vitest runs) **and
     a tiny `add` stub in `src/utils.ts`** (proves the src→test import path +
-    tsconfig). *Checkpoint: `npm test` → 2 passed.*
-11. `npm run build` (tsc -noEmit && esbuild). *Checkpoint: non-empty `main.js` in
-    plugin root, tsc exits 0.*
+    tsconfig). _Checkpoint: `npm test` → 2 passed._
+11. `npm run build` (tsc -noEmit && esbuild). _Checkpoint: non-empty `main.js` in
+    plugin root, tsc exits 0._
 12. Scratch-vault load: open an empty vault, enable community plugins, enable
-    "Periodic note types". *Checkpoint: `Notice("periodic-types: env ok")` toast +
-    `periodic-types onload` in console; plugin shows enabled.*
-13. Disable→enable cycle. *Checkpoint: Notice re-fires each enable; no console
-    errors.*
+    "Periodic note types". _Checkpoint: `Notice("periodic-types: env ok")` toast +
+    `periodic-types onload` in console; plugin shows enabled._
+13. Disable→enable cycle. _Checkpoint: Notice re-fires each enable; no console
+    errors._
 14. (Optional) `npm run dev` watch + "Reload plugin without saving" → edit stub →
-    new Notice text appears. *Checkpoint: dev loop proven before feature code.*
+    new Notice text appears. _Checkpoint: dev loop proven before feature code._
 
 **Green light — "environment is initialized and testable" = ALL four:**
+
 1. Node ≥ 20; `npm install` clean in the plugin folder.
 2. `npm run build` exits 0, non-empty `main.js` in the plugin folder.
 3. `npm test` exits 0 with harness tests passing.
