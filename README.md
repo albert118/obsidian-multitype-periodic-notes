@@ -1,33 +1,50 @@
-# obsidian-multitype-periodic-notes
+# Periodic note types
 
-An Obsidian plugin for managing **multiple, independently-configurable periodic
-note types** (work, personal, journal, …) that run in parallel alongside
-[Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes).
-
-Periodic Notes generates one daily/periodic note per active configuration. This
-plugin lets you register any number of note types — each with its own folder,
-filename format, template, granularity, and per-type commands — so a work note and
-a personal note can both follow the same canonical daily flow without manual
+An Obsidian plugin for running **any number of independently-configurable
+periodic note types** (work, personal, journal, …) in parallel alongside
+[Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes). Each type
+has its own folder, filename format, template, granularity, and its own command —
+so a work note and a personal note can both follow the daily flow without manual
 setup.
 
-## Planned features
+## Install
 
-- Registry of note types (`id`, `name`, `granularity`, `folder`, `format`,
-  `templatePath`, `openAtStartup`).
-- Per-type command: `Open today's {name} note`, plus a picker for next/prev.
-- Template resolution and `{{date}}`/`{{time}}`/`{{title}}` substitution.
-- `type: <id>` frontmatter stamping for querying / future pruning.
-- Collision guard so no two types write the same rendered path.
-- Works alongside Periodic Notes (standalone plugin, no coupling).
+1. `npm install && npm run build` (requires Node ≥ 20).
+2. Copy `main.js`, `manifest.json`, `styles.css` into
+   `<vault>/.obsidian/plugins/periodic-types/`.
+3. Enable it in **Settings → Community plugins**.
 
-## Development
+Requires Obsidian ≥ 1.7.2.
 
-Node ≥ 20. Scaffolded from the
-[Obsidian sample plugin](https://github.com/obsidianmd/obsidian-sample-plugin);
-`npm run dev` builds `main.js`, then copy `main.js`, `manifest.json`,
-`styles.css` into `<vault>/.obsidian/plugins/<plugin-id>/` and reload Obsidian.
+## Usage
 
-See the plan for the full bootstrap checklist and staged build sequence.
+- **Commands** — one per enabled type: `Open today's {id} note` (named from the
+  type's immutable ID, so renaming the display name never changes a command),
+  plus `Open periodic note…` to pick a type and a period (today / next /
+  previous).
+- **Settings** — add a type by display name; the ID is derived once (`slug`) and
+  never changes. Per type: name, folder, filename format (moment; blank =
+  granularity default), template path, granularity, enabled, open at startup.
+  Empty names are rejected; duplicate IDs get a `-2` suffix; deleting all types
+  resets to the default `work` type.
+- **Collision guard** — two enabled types can't resolve to the same rendered
+  path. Keep each type's folder distinct from your Periodic Notes daily folder:
+  the guard only covers this plugin's own types.
+- **Frontmatter** — notes are stamped with `type: <id>` and `date:` (existing
+  notes only when missing) so Dataview can select per-type notes.
+- **Open at startup** — opens the type's current note on a real app launch;
+  toggling the plugin mid-session does not pop notes.
+
+## Notes
+
+- A missing template never blocks creation: the note is created empty and a
+  Notice is shown.
+- If [Templater](https://github.com/SilentVoid13/Templater) is installed,
+  `<% %>` blocks in templates are best-effort rendered through it at creation;
+  this plugin always substitutes its own `{{date}}`/`{{time}}`/`{{title}}`
+  tokens.
+- Corrupt YAML on an existing note at a type's path shows an error Notice; the
+  note still opens.
 
 ## License
 
