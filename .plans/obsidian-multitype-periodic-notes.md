@@ -90,7 +90,7 @@ periodic-types/
 ├── esbuild.config.mjs        # standard sample-plugin bundle → main.js (external: obsidian, electron, codemirror…)
 ├── tsconfig.json
 ├── vitest.config.ts         # node env, include tests/**/*.spec.ts
-├── versions.json            # stub { "0.0.1": "1.4.0" } — publish decision pending
+├── versions.json            # stub { "0.0.1": "1.7.2" } — publish decision pending
 └── src/
     ├── main.ts              # PeriodicTypesPlugin extends Plugin; command generation
     ├── types.ts             # NoteTypeConfig, PluginSettings interfaces
@@ -156,11 +156,11 @@ No schema change needed later; the `DEFAULT_FORMATS` table already covers every
 granularity, so a weekly/monthly/etc. type is fully expressible from day one.
 
 **Id discipline:** `id` is derived once at Add via `slug(name)` and validated against
-`/^[a-z0-9][a-z0-9-]*$/`; empty/duplicate slugs are rejected with a `Notice`. `id` is
-**not** user-editable after creation — only `name` is. This keeps command ids,
-hotkey keys (`${pluginId}:${commandId}`), and frontmatter `type:` stable across
-renames, and prevents `/`, `:`, spaces, or uppercase in ids from producing ambiguous
-command ids or breaking the hotkey separator.
+`/^[a-z0-9]+(?:-[a-z0-9]+)*$/`; empty/duplicate slugs are rejected with a `Notice`. `id` is
+**not** user-editable after creation — only `name` is. This keeps command ids, their
+**labels** (`Open today's ${id} note`), hotkey keys (`${pluginId}:${commandId}`), and
+frontmatter `type:` stable across renames, and prevents `/`, `:`, spaces, or uppercase
+in ids from producing ambiguous command ids or breaking the hotkey separator.
 ```
 
 ### utils.ts — the three MIT helpers (from Periodic Notes `src/utils.ts`)
@@ -227,7 +227,7 @@ export default class PeriodicTypesPlugin extends Plugin {
       if (this.registeredCommandIds.has(id)) continue;
       this.addCommand({
         id,
-        name: `Open today's ${t.name} note`,
+        name: `Open today's ${t.id} note`,   // label derives from the immutable id
         callback: async () => this.openNote(t, window.moment()),
       });
     }
@@ -301,16 +301,25 @@ and calls `app.commands.removeCommand("periodic-types:" + id)` for ids no longer
 wanted before adding the current set. This is exactly how Periodic Notes cleans up
 disabled granularities (`app.commands.removeCommand` in its `configureCommands`).
 Deleting/renaming/disabling a type therefore reliably removes its palette commands
-and dissolves stale hotkeys instead of trusting `addCommand` idempotency. Because
-command ids derive from the type `id` (not its display `name`), renaming a type's
-`name` keeps ids/hotkeys stable.
+and dissolves stale hotkeys instead of trusting `addCommand` idempotency. Both the
+command **id and its label** derive from the type `id` (`Open today's ${id} note`),
+not its display `name` — so renaming a type's `name` changes nothing about the
+command (id, label, hotkey all stay put), by design.
 
-**`openNote` guardrails:** (a) a try/catch around `vault.create` returns `null` when
-the note raced into existence (e.g. concurrent `openAtStartup` + hotkey), and the
-caller re-fetches via `getAbstractFileByPath`; (b) `instanceof TFile` guard so a
-folder sitting at the computed path can't be opened; (c) if the note is already open
-in a markdown leaf, `setActiveLeaf` on it instead of opening a duplicate tab —
-avoids Periodic Notes' tab-duplication wart.
+**`openNote` guardrails:** `openNote` is guaranteed **non-rejecting** (command
+callback, layout-ready, and picker all fire-and-forget via `void`). Every failure
+goes through one of four kinds (`folder`/`create`/`stamp`/`open`) surfaced by
+`handleNoteError` → `console.error` + a user-facing `Notice`. Specifically:
+(a) filename/`getNotePath` (folder creation) is wrapped → `folder`; (b) `createNote`
+only lets the `already exists` race through as `null` (caller re-fetches) — any
+other `vault.create` throw is re-thrown into `openNote`, which re-checks the path
+for a race winner, else surfaces `create`; (c) the fresh-note frontmatter stamp in
+`createNote` is in its own silent catch (the file exists but is unstamped —
+`openNote`'s own stamp then surfaces **one** `stamp` Notice and still opens);
+(d) `instanceof TFile` guard so a folder at the computed path is rejected with a
+short Notice (upgraded from a silent no-op); (e) `processFrontMatter` on the opened
+note is wrapped → `stamp`, but the note still opens; (f) the already-open-leaf
+lookup + `setActiveLeaf`/`getLeaf(false).openFile` are wrapped → `open`.
 
 **`openAtStartup` gating:** startup-open fires inside `app.workspace.on("layout-ready")`,
 so it runs on a real app launch, not on plugin reload/disable-toggle (which also
@@ -355,7 +364,7 @@ fires `onload`). Avoids popping every type whenever you toggle the dev plugin.
   "id": "periodic-types",
   "name": "Periodic note types",
   "version": "0.0.1",
-  "minAppVersion": "1.4.0",
+  "minAppVersion": "1.7.2",
   "description": "Generate multiple independently-configurable periodic notes (work, personal, journal, ...) alongside Periodic Notes.",
   "author": "",
   "isDesktopOnly": false
@@ -372,9 +381,18 @@ Plugin folder must be named to match `id`.
 - **Granularity** is part of the type, so a future weekly or monthly type is
   already expressible (format defaults exist per granularity) with no schema change.
 
-## Seed behavior (first run — no `data.json` yet)
+## Seed behavior (empty registry is invalid)
 
-On `onload`, if `this.settings.types` is empty, seed exactly one type:
+**Empty is invalid by design.** On `onload`, if `this.settings.types` is empty,
+seed exactly one type (`id: "work"`, `name: "Work"`, `folder: "Work"`, day
+granularity, no template, `openAtStartup` off). Because the seed runs whenever
+`types.length === 0`, it covers not only the true first run (no data.json) but a
+stale/empty data.json and a delete-all reset whose save raced — all recover to
+the same seeded state. **No version marker needed.**
+
+Deleting the last type resets **immediately** (not only on reload): the delete
+handler runs the empty list through `ensureNonEmptyTypes`, which returns the seed,
+and shows a "reset to the default 'work' type" Notice.
 
 ```ts
 {
@@ -652,11 +670,11 @@ repo + NTFS directory junction. See Repository/location.
    *Checkpoint: package.json, manifest.json, tsconfig.json, esbuild.config.mjs,
    version-bump.mjs, eslint config present.*
 4. Edit `manifest.json`: `id "periodic-types"`, `name "Periodic note types"`,
-   `version "0.0.1"`, `minAppVersion "1.4.0"`, `isDesktopOnly false`, `author ""`.
+   `version "0.0.1"`, `minAppVersion "1.7.2"`, `isDesktopOnly false`, `author ""`.
    Folder must match `id` exactly. *Checkpoint: valid JSON.*
 5. Edit `package.json`: name `periodic-types`, `"engines": { "node": ">=20" }`.
    *Checkpoint: valid JSON.*
-6. Create `versions.json` stub `{ "0.0.1": "1.4.0" }` (keep or drop `version` npm
+6. Create `versions.json` stub `{ "0.0.1": "1.7.2" }` (keep or drop `version` npm
    script per publish decision). *Checkpoint: file exists.*
 7. Replace `src/main.ts` with a **stub** (no-op, just proves load):
    `onload() { new Notice("periodic-types: env ok"); }`. *Checkpoint: compiles.*
@@ -793,7 +811,8 @@ Unchanged behavior list, mapped to the plan's earlier numbered manual steps:
    assert previously-added commands are unchanged.
 6. Collision guard: point two types at the same rendered path → assert save is
    blocked with a Notice identifying both.
-7. Rename a type's `name` → assert command label updates; command id unchanged.
+7. Rename a type's `name` → assert the command changes nothing (id **and** label
+   both derive from the immutable id: `Open today's work note`), by design.
 8. Delete a type → assert its command disappears (removeCommand path), no orphan.
 9. Disable a type → assert its command disappears.
 10. `openAtStartup` on one type, full restart → assert today's note opens; on a
