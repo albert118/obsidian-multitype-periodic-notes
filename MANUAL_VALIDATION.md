@@ -14,6 +14,7 @@ builds — if the stub toast is gone, that's expected).
 ## Part A — Core scenarios (plan manual acceptance pass)
 
 ### A1. Create & open
+
 - [ ] Configure two types: `Work` → `Work/`, `Journal` → `Journal/`, each with a
       throwaway template using `{{date}}` / `{{time}}` / `{{title}}`.
 - [ ] "Open today's Work note" creates `Work/<today>.md`; tokens substituted;
@@ -22,14 +23,16 @@ builds — if the stub toast is gone, that's expected).
       tab, does NOT duplicate.
 
 ### A2. Picker
+
 - [ ] "Open periodic note…" → type list appears → selecting a type advances to a
       period list (Today / Next / Previous) → selection opens the correct note.
 
 ### A3. Settings registry
+
 - [ ] Add a third type via settings → its "Open today's…" command appears without
       app reload; previously-added commands unchanged.
 - [ ] Rename a type's `name` → command **id AND label** unchanged (`Open today's
-      work note`, named from the immutable id — by design).
+    work note`, named from the immutable id — by design).
 - [ ] Delete a type → its command disappears from the palette, no orphan.
 - [ ] Disable a type → its command disappears.
 - [ ] Add a type with an empty name → blocked with a Notice.
@@ -37,22 +40,26 @@ builds — if the stub toast is gone, that's expected).
       gets a counter suffix (`work`, `work-2`).
 
 ### A4. Collision guard
+
 - [ ] Point two enabled types at the same rendered path (e.g. same folder + same
       format) → save blocked with a Notice naming both.
 - [ ] Distinct names in one folder (daily `YYYY-MM-DD` vs monthly `YYYY-MM`)
       allowed.
 
 ### A5. openAtStartup
+
 - [ ] Enable `openAtStartup` on one type, full Obsidian restart → today's note
       opens.
 - [ ] Plugin reload / disable-toggle (NOT a cold start) → does NOT pop notes.
 
 ### A6. Robustness
+
 - [ ] Fire two "open today" for the same type rapidly → no duplicate-note crash.
 - [ ] Create a folder named exactly like a target note → no-op, no throw (a
       short Notice explains the folder at that path).
 
 ### A7. Registry edge
+
 - [ ] Delete ALL types → "Reset to default" Notice and the Work block
       immediately reappears; reload → Work persists.
 - [ ] (Optional) Edit `data.json` to `{"types":[]}` and reload → `work` is
