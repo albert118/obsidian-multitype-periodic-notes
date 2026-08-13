@@ -2,7 +2,7 @@ export type Granularity = "day" | "week" | "month" | "quarter" | "year";
 
 export interface NoteTypeConfig {
 	id: string;           // "work", "personal", "journal", ... unique
-	name: string;         // "Work" (human-facing, used in command/labels)
+	name: string;         // "Work" (display name for settings/picker; commands use the immutable id)
 	enabled: boolean;
 	granularity: Granularity;
 	folder: string;       // "Work"
