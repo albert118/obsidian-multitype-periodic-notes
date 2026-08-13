@@ -1,4 +1,5 @@
 import { Notice, normalizePath as obsidianNormalizePath } from "obsidian";
+import { DEFAULT_FORMATS } from "./constants";
 import type { NoteTypeConfig } from "./types";
 
 /**
@@ -7,7 +8,7 @@ import type { NoteTypeConfig } from "./types";
  * stub instead of Obsidian's `window.moment`.
  */
 export interface MomentLike {
-	format(format: string): string;
+	format: (format: string) => string;
 }
 
 /** Minimal vault surface used by the path helpers (real `App.vault` satisfies it). */
@@ -31,10 +32,16 @@ interface TemplateVaultLike {
 	cachedRead(file: unknown): Promise<string>;
 }
 
-/** Minimal app surface used by getTemplateContents. */
-interface TemplateAppLike {
+/**
+ * Minimal app surface used by the template helpers. `plugins` is optional: the
+ * real `App` carries `plugins.plugins` at runtime even though the obsidian
+ * typings do not declare it, so we feature-detect Templater through a narrow
+ * optional member that the real object satisfies structurally.
+ */
+export interface TemplateAppLike {
 	metadataCache: TemplateMetadataCacheLike;
 	vault: TemplateVaultLike;
+	plugins?: { plugins?: Record<string, unknown> };
 }
 
 /**
@@ -54,7 +61,7 @@ function joinPosix(...parts: string[]): string {
  * obsidian's documented `normalizePath` (backslash -> "/", collapse duplicate
  * slashes, strip leading/trailing slashes) without importing obsidian, so the
  * path helpers stay Layer-1 testable. getNotePath, ensureFolderExists, and the
- * Stage 5 rendered-path collision guard all flow through this one helper.
+ * rendered-path collision guard all flow through this one helper.
  */
 function normalizePath(path: string): string {
 	return path
@@ -65,8 +72,8 @@ function normalizePath(path: string): string {
 
 /**
  * Resolve the vault-absolute path for a note named `filename` inside `folder`.
- * THE shared path helper: getNotePath and the future rendered-path collision
- * guard must both use this so guard and runtime can never disagree.
+ * THE shared path helper: getNotePath and the rendered-path collision guard
+ * must both use this so guard and runtime can never disagree.
  */
 export function resolveNotePath(folder: string, filename: string): string {
 	return normalizePath(joinPosix(folder, `${filename}.md`));
@@ -103,7 +110,8 @@ export async function getNotePath(
 /**
  * Substitute template tokens. `{{date}}` and `{{title}}` become the already-
  * formatted `filename`; `{{time}}` becomes the injected `date` formatted as
- * "HH:mm" (the injected date, not `window.moment()`, keeps this pure).
+ * "HH:mm" (the injected date, not `window.moment()`, keeps this pure). This is
+ * the guaranteed render path — Templater feature-detect never replaces it.
  */
 export function applyTemplateTransformations(
 	filename: string,
@@ -114,6 +122,60 @@ export function applyTemplateTransformations(
 		.replace(/{{\s*date\s*}}/gi, filename)
 		.replace(/{{\s*time\s*}}/gi, date.format("HH:mm"))
 		.replace(/{{\s*title\s*}}/gi, filename);
+}
+
+/**
+ * True when the Templater community plugin is enabled in this vault. Used by
+ * renderNoteTemplate to decide whether to best-effort `<% %>` rendering. We
+ * only read its presence — never its internals parsing or its data.
+ */
+export function isTemplaterAvailable(app: TemplateAppLike): boolean {
+	return app.plugins?.plugins?.["obsidian-templater"] != null;
+}
+
+/**
+ * Best-effort render through Templater's API. Templater exposes no stable
+ * public render method across versions, so this is strictly a guarded attempt:
+ * we only call a shape we recognize, wrap it in try/catch, and accept the result
+ * only when Templater actually changed the content (so a partial/failed render —
+ * which produces identical or empty output — is discarded). Returns "" when the
+ * plugin or the recognized shape is absent, rendering throws, or nothing changed,
+ * so the caller always falls back to its own token substitution.
+ */
+async function renderWithTemplater(app: TemplateAppLike, content: string): Promise<string> {
+	if (!isTemplaterAvailable(app)) return "";
+	const templater = (
+		app.plugins?.plugins?.["obsidian-templater"] as
+			| { templater?: { parse_template?: (config: unknown, content: string) => Promise<string> } }
+			| undefined
+	)?.templater;
+	const render = templater?.parse_template;
+	if (typeof render !== "function") return "";
+	try {
+		const result = await render({}, content);
+		if (typeof result === "string" && result !== "" && result !== content) return result;
+		return "";
+	} catch {
+		return "";
+	}
+}
+
+/**
+ * Produce the final note body. Feature-detects Templater and, when present,
+ * best-effort renders `<% %>` blocks through it (see renderWithTemplater), then
+ * applies our own `{{date}}/{{time}}/{{title}}` substitution. Template handling
+ * never breaks note creation: any absence, missing shape, or thrown render falls
+ * back to the guaranteed regex path. (Templater additionally processes `<% %>`
+ * itself on file creation via its trigger-on-file-creation hook.)
+ */
+export async function renderNoteTemplate(
+	app: TemplateAppLike,
+	filename: string,
+	date: MomentLike,
+	templateContents: string
+): Promise<string> {
+	const templated = await renderWithTemplater(app, templateContents);
+	return applyTemplateTransformations(filename, date, templated || templateContents);
 }
 
 /**
@@ -139,4 +201,26 @@ export async function getTemplateContents(
 		new Notice(`Failed to read the template '${templatePath}'`);
 		return "";
 	}
+}
+
+/**
+ * Return a Notice message naming two enabled types whose rendered paths
+ * collide, or null when every enabled type maps to a distinct path. Uses the
+ * same `resolveNotePath` helper as `openNote` so the guard can never disagree
+ * with the runtime. Same-folder but different rendered filenames (e.g. daily
+ * `YYYY-MM-DD` vs monthly `YYYY-MM`) are correctly allowed.
+ */
+export function findRenderedPathCollisions(types: NoteTypeConfig[]): string | null {
+	const rendered = new Map<string, NoteTypeConfig>();
+	for (const type of types) {
+		if (!type.enabled) continue;
+		const filename = (type.format || DEFAULT_FORMATS[type.granularity]).trim();
+		const path = resolveNotePath(type.folder, filename);
+		const other = rendered.get(path);
+		if (other) {
+			return `'${other.name}' and '${type.name}' both resolve to '${path}'. Give them distinct folders or filename formats.`;
+		}
+		rendered.set(path, type);
+	}
+	return null;
 }

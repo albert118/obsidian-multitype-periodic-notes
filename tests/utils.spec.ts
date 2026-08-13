@@ -27,14 +27,14 @@ const makeApp = (overrides: Partial<AppLike> = {}): AppLike => ({
 	...overrides,
 });
 
-const makeTemplateApp = (overrides: Record<string, unknown> = {}): {
+const makeTemplateApp = (overrides: Partial<Record<string, unknown>> = {}): {
 	metadataCache: { getFirstLinkpathDest: (path: string, sourcePath: string) => unknown };
 	vault: { cachedRead: ReturnType<typeof vi.fn> };
 } => ({
 	metadataCache: { getFirstLinkpathDest: () => null },
 	vault: { cachedRead: vi.fn().mockResolvedValue("template body") },
 	...overrides,
-} as never);
+});
 
 beforeEach(() => {
 	vi.clearAllMocks();
@@ -106,7 +106,7 @@ describe("getNotePath", () => {
 		const app = makeApp({ vault: { getAbstractFileByPath: () => null, createFolder } });
 		const path = await getNotePath(app, "note", { folder: "a/b/c" });
 		expect(path).toBe("a/b/c/note.md");
-		expect(createFolder.mock.calls.map((call) => call[0])).toEqual(["a", "a/b", "a/b/c"]);
+		expect(createFolder.mock.calls.map((call) => String(call[0]))).toEqual(["a", "a/b", "a/b/c"]);
 	});
 
 	it("should not create any folder when the type folder is empty", async () => {
@@ -146,7 +146,7 @@ describe("ensureFolderExists", () => {
 			},
 		});
 		await ensureFolderExists(app, "a/b/c/note.md");
-		expect(createFolder.mock.calls.map((call) => call[0])).toEqual(["a/b", "a/b/c"]);
+		expect(createFolder.mock.calls.map((call) => String(call[0]))).toEqual(["a/b", "a/b/c"]);
 	});
 
 	it("should be idempotent when every folder already exists", async () => {

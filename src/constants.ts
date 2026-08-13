@@ -26,3 +26,15 @@ export function slug(name: string): string {
 		.replace(/[^a-z0-9]+/g, "-")
 		.replace(/^-+|-+$/g, "");
 }
+
+/** Default "work" note type, seeded on first run and after a delete-all reset.
+ *  Fresh copy per call: the settings UI mutates live type objects in place. */
+export function makeWorkSeed(): NoteTypeConfig {
+	return { ...DEFAULT_NOTE_TYPE, id: "work", name: "Work", folder: "Work" };
+}
+
+/** Empty registries are invalid by design: returns the seed for an empty list,
+ *  otherwise the input list unchanged (same reference). */
+export function ensureNonEmptyTypes(types: NoteTypeConfig[]): NoteTypeConfig[] {
+	return types.length === 0 ? [makeWorkSeed()] : types;
+}
