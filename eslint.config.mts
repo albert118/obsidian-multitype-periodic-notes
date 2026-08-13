@@ -13,6 +13,8 @@ export default defineConfig(
         'package.json',
         'package-lock.json',
         'tsconfig.json',
+        'eslint.config.mts',
+        '*.spec.ts',
     ]),
     {
         languageOptions: {
@@ -23,6 +25,7 @@ export default defineConfig(
                 projectService: {
                     allowDefaultProject: ['eslint.config.mts', 'manifest.json', 'vitest.config.ts', 'tests/*.spec.ts'],
                 },
+                // @ts-ignore
                 tsconfigRootDir: import.meta.dirname,
                 extraFileExtensions: ['.json'],
             },
@@ -36,6 +39,5 @@ export default defineConfig(
         rules: {
             'obsidianmd/rule-custom-message': 'off',
         },
-        ignores: ['**/__tests__/**', '**/*.test.js', '**/*.spec.js', '**/*.test.ts', '**/*.spec.ts'],
     },
 );
