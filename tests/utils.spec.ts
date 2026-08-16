@@ -5,9 +5,12 @@ import {
     ensureFolderExists,
     getNotePath,
     getTemplateContents,
+    isTemplaterAvailable,
+    renderNoteTemplate,
     resolveNotePath,
     type AppLike,
     type MomentLike,
+    type TemplateAppLike,
 } from '../src/utils';
 
 vi.mock('obsidian', () => ({
@@ -189,5 +192,81 @@ describe('getTemplateContents', () => {
         await expect(getTemplateContents(app, 'Templates/broken.md')).resolves.toBe('');
         expect(Notice).toHaveBeenCalledTimes(1);
         expect(Notice).toHaveBeenCalledWith(expect.stringContaining('template'));
+    });
+});
+
+/** A TemplateAppLike double that optionally carries the Templater plugin. */
+const makeTemplaterApp = (plugins?: Record<string, unknown>): TemplateAppLike => ({
+    metadataCache: { getFirstLinkpathDest: () => null },
+    vault: { cachedRead: vi.fn().mockResolvedValue('') },
+    ...(plugins !== undefined ? { plugins: { plugins } } : {}),
+});
+
+describe('isTemplaterAvailable', () => {
+    it('should return true when the Templater plugin is present', () => {
+        expect(isTemplaterAvailable(makeTemplaterApp({ 'obsidian-templater': {} }))).toBe(true);
+    });
+
+    it('should return false when the plugin registry is absent', () => {
+        expect(isTemplaterAvailable(makeTemplaterApp())).toBe(false);
+    });
+
+    it('should return false when only another plugin is present', () => {
+        expect(isTemplaterAvailable(makeTemplaterApp({ 'some-other-plugin': {} }))).toBe(false);
+    });
+});
+
+describe('renderNoteTemplate — Templater feature-detect', () => {
+    const filename = '2026-08-12';
+    const date = makeDate();
+    const template = '{{date}} / {{time}} / {{title}}';
+
+    it('should apply plain token substitution when Templater is absent', async () => {
+        const body = await renderNoteTemplate(makeTemplaterApp(), filename, date, template);
+        expect(body).toBe('2026-08-12 / 14:30 / 2026-08-12');
+    });
+
+    it('should fall back to token substitution when parse_template is not a function', async () => {
+        const app = makeTemplaterApp({ 'obsidian-templater': { templater: {} } });
+        const body = await renderNoteTemplate(app, filename, date, template);
+        expect(body).toBe('2026-08-12 / 14:30 / 2026-08-12');
+    });
+
+    it('should fall back to token substitution when Templater rendering throws', async () => {
+        const app = makeTemplaterApp({
+            'obsidian-templater': {
+                templater: { parse_template: vi.fn().mockRejectedValue(new Error('boom')) },
+            },
+        });
+        const body = await renderNoteTemplate(app, filename, date, template);
+        expect(body).toBe('2026-08-12 / 14:30 / 2026-08-12');
+    });
+
+    it('should fall back to token substitution when Templater returns the input unchanged', async () => {
+        const app = makeTemplaterApp({
+            'obsidian-templater': {
+                templater: { parse_template: vi.fn(async (_cfg: unknown, content: string) => content) },
+            },
+        });
+        const body = await renderNoteTemplate(app, filename, date, template);
+        expect(body).toBe('2026-08-12 / 14:30 / 2026-08-12');
+    });
+
+    it('should fall back to token substitution when Templater returns an empty string', async () => {
+        const app = makeTemplaterApp({
+            'obsidian-templater': { templater: { parse_template: vi.fn().mockResolvedValue('') } },
+        });
+        const body = await renderNoteTemplate(app, filename, date, template);
+        expect(body).toBe('2026-08-12 / 14:30 / 2026-08-12');
+    });
+
+    it('should use Templater output when it differs and still apply token substitution', async () => {
+        const app = makeTemplaterApp({
+            'obsidian-templater': {
+                templater: { parse_template: vi.fn().mockResolvedValue('Generated {{date}} by Templater') },
+            },
+        });
+        const body = await renderNoteTemplate(app, filename, date, template);
+        expect(body).toBe('Generated 2026-08-12 by Templater');
     });
 });

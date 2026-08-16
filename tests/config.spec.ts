@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import PeriodicTypesPlugin from '../src/main';
 import { DEFAULT_NOTE_TYPE } from '../src/constants';
 import type { App, PluginManifest } from 'obsidian';
@@ -202,6 +202,32 @@ describe('configureCommands', () => {
             }),
         );
     });
+
+    it('should open the type note when its command callback fires', () => {
+        // The command callback closes over `this` (the plugin) and the type; a
+        // regression that bound a stale plugin/type would call openNote with
+        // the wrong receiver/argument. Stub window.moment so the callback's
+        // default date resolves deterministically.
+        const momentStub = { add: vi.fn() };
+        vi.stubGlobal('window', { moment: vi.fn(() => momentStub) });
+        const type = makeNoteType();
+        const plugin = makePlugin([type]);
+        const openNote = vi.fn().mockResolvedValue(undefined);
+        plugin.openNote = openNote;
+
+        plugin.configureCommands();
+
+        const workCommand = (commandSpies(plugin).addCommand.mock.calls as unknown[][])
+            .map(call => call[0] as { id: string; callback: () => void })
+            .find(candidate => candidate.id === 'open-today-work-note');
+        workCommand!.callback();
+
+        expect(openNote).toHaveBeenCalledWith(type, momentStub);
+    });
+});
+
+afterEach(() => {
+    vi.unstubAllGlobals();
 });
 
 describe('onload seeding', () => {

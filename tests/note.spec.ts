@@ -10,6 +10,9 @@ import type { MomentLike } from '../src/utils';
  *  to the same array the assertions read. */
 const { noticeMessages } = vi.hoisted(() => ({ noticeMessages: [] as string[] }));
 
+/** The console.error spy created per test (handleNoteError logs through it). */
+let consoleErrorSpy: Mock;
+
 vi.mock('obsidian', () => {
     class Plugin {
         app: unknown;
@@ -102,6 +105,15 @@ const makeDate = (filename = '2026-08-12', time = '09:30'): MomentLike => ({
     format: vi.fn((format: string) => (format === 'HH:mm' ? time : filename)),
 });
 
+/** The default text leaf returned by workspace.getLeaf; its openFile spies. */
+const makeLeaf = () => ({ openFile: vi.fn().mockResolvedValue(undefined) });
+
+/** The openFile spy from the leaf the first getLeaf(false) call returned. */
+const openFileSpy = (app: AppDouble): Mock => {
+    const leaf = app.workspace.getLeaf.mock.results[0]?.value as { openFile: Mock } | undefined;
+    return leaf!.openFile;
+};
+
 const makeApp = (overrides: Partial<AppDouble> = {}): AppDouble => {
     const app: AppDouble = {
         vault: {
@@ -114,7 +126,7 @@ const makeApp = (overrides: Partial<AppDouble> = {}): AppDouble => {
         workspace: {
             getLeavesOfType: vi.fn().mockReturnValue([]),
             setActiveLeaf: vi.fn(),
-            getLeaf: vi.fn().mockReturnValue({ openFile: vi.fn().mockResolvedValue(undefined) }),
+            getLeaf: vi.fn().mockReturnValue(makeLeaf()),
             on: vi.fn().mockReturnValue(() => {}),
         },
         metadataCache: { getFirstLinkpathDest: vi.fn().mockReturnValue(null) },
@@ -142,8 +154,8 @@ beforeEach(() => {
     vi.restoreAllMocks();
     noticeMessages.length = 0;
     // handleNoteError logs via console.error; silence it so it doesn't pollute
-    // the test output.
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    // the test output, and keep the spy for the console-failure assertions.
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 });
 
 describe('openNote — create path', () => {
@@ -169,6 +181,7 @@ describe('openNote — create path', () => {
         expect(matter.type).toBe('work');
         expect(matter.date).toBe('2026-08-12');
         expect(app.workspace.getLeaf).toHaveBeenCalledWith(false);
+        expect(openFileSpy(app)).toHaveBeenCalledWith(file);
     });
 
     it('should substitute template tokens into the created body', async () => {
@@ -213,6 +226,7 @@ describe('openNote — existing path handling', () => {
 
         expect(app.vault.create).not.toHaveBeenCalled();
         expect(app.workspace.getLeaf).toHaveBeenCalledWith(false);
+        expect(openFileSpy(app)).toHaveBeenCalledWith(file);
     });
 
     it('should stamp type and date on a pre-existing file only when they are absent', async () => {
@@ -289,6 +303,7 @@ describe('openNote — race and guard paths', () => {
         expect(app.vault.create).toHaveBeenCalledTimes(1);
         expect(app.vault.getAbstractFileByPath).toHaveBeenCalledWith('Work/2026-08-12.md');
         expect(app.workspace.getLeaf).toHaveBeenCalledWith(false);
+        expect(openFileSpy(app)).toHaveBeenCalledWith(file);
     });
 
     it('should no-op safely when a folder occupies the rendered path', async () => {
@@ -338,8 +353,10 @@ describe('openNote — race and guard paths', () => {
         expect(noticeMessages).toHaveLength(1);
         expect(noticeMessages[0]).toContain('frontmatter');
         expect(noticeMessages[0]).toContain('Work/2026-08-12.md');
+        expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('[periodic-types] stamp'), expect.anything());
         // the note still opens despite the stamp failure
         expect(app.workspace.getLeaf).toHaveBeenCalledWith(false);
+        expect(openFileSpy(app)).toHaveBeenCalledWith(file);
     });
 
     it('should surface a create Notice and not open when vault.create rejects with a non-race error', async () => {
@@ -358,6 +375,7 @@ describe('openNote — race and guard paths', () => {
 
         expect(noticeMessages).toHaveLength(1);
         expect(noticeMessages[0]).toContain('create');
+        expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('[periodic-types] create'), expect.anything());
         expect(app.workspace.getLeaf).not.toHaveBeenCalled();
     });
 
@@ -384,7 +402,9 @@ describe('openNote — race and guard paths', () => {
         // the single user-facing Notice, and the note still opens.
         expect(noticeMessages).toHaveLength(1);
         expect(noticeMessages[0]).toContain('frontmatter');
+        expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('[periodic-types] stamp'), expect.anything());
         expect(app.workspace.getLeaf).toHaveBeenCalledWith(false);
+        expect(openFileSpy(app)).toHaveBeenCalledWith(file);
     });
 
     it('should surface a folder Notice and not create or open when folder creation fails', async () => {
@@ -403,6 +423,7 @@ describe('openNote — race and guard paths', () => {
 
         expect(noticeMessages).toHaveLength(1);
         expect(noticeMessages[0]).toContain('folder');
+        expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('[periodic-types] folder'), expect.anything());
         expect(app.vault.create).not.toHaveBeenCalled();
         expect(app.workspace.getLeaf).not.toHaveBeenCalled();
     });
