@@ -1,6 +1,6 @@
 import { Notice, PluginSettingTab, Setting } from 'obsidian';
 import type { App, SettingDefinitionItem } from 'obsidian';
-import { DEFAULT_FORMATS, DEFAULT_NOTE_TYPE, ensureNonEmptyTypes, slug } from './constants';
+import { DEFAULT_FORMATS, DEFAULT_NOTE_TYPE, ensureNonEmptyTypes, resolveUniqueSlug } from './constants';
 import { findRenderedPathCollisions } from './utils';
 import type { Granularity, NoteTypeConfig } from './types';
 import type PeriodicTypesPlugin from './main';
@@ -191,17 +191,13 @@ export class NoteTypeSettingTab extends PluginSettingTab {
      * is rejected and a duplicate id gets a numeric suffix (`work`, `work-2`, …).
      */
     private async addType(name: string): Promise<void> {
-        let id = slug(name);
+        const id = resolveUniqueSlug(
+            this.plugin.settings.types.map(type => type.id),
+            name,
+        );
         if (id === '') {
             new Notice('Enter a name for the new note type.');
             return;
-        }
-        const existing = new Set(this.plugin.settings.types.map(t => t.id));
-        if (existing.has(id)) {
-            const base = id;
-            let counter = 2;
-            while (existing.has(`${base}-${counter}`)) counter += 1;
-            id = `${base}-${counter}`;
         }
         this.plugin.settings.types.push({
             ...DEFAULT_NOTE_TYPE,
