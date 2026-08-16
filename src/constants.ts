@@ -40,3 +40,25 @@ export function makeWorkSeed(): NoteTypeConfig {
 export function ensureNonEmptyTypes(types: NoteTypeConfig[]): NoteTypeConfig[] {
     return types.length === 0 ? [makeWorkSeed()] : types;
 }
+
+/** Return true when `candidate` is present in `ids`. Iteration-based so it works
+ *  with any iterable (array, Set, generator) without assuming array methods. */
+function containsId(ids: Iterable<string>, candidate: string): boolean {
+    for (const id of ids) {
+        if (id === candidate) return true;
+    }
+    return false;
+}
+
+/** Returns slug(name), or slug(name)-2/-3/… when that id already exists. */
+export function resolveUniqueSlug(existingIds: Iterable<string>, name: string): string {
+    const base = slug(name);
+    if (base === '') return '';
+    let candidate = base;
+    let counter = 2;
+    while (containsId(existingIds, candidate)) {
+        candidate = `${base}-${counter}`;
+        counter += 1;
+    }
+    return candidate;
+}
