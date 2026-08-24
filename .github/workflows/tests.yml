@@ -1,0 +1,26 @@
+name: Tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install node modules
+        run: npm ci --cache --prefer-offline --no-audit
+
+      - name: Tests with Reporting
+        working-directory: .
+        run: npm run test --reporter=default --reporter=github-actions
