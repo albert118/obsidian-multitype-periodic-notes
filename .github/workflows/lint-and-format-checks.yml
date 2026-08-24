@@ -1,13 +1,15 @@
-name: Lint and Format Check
+name: Lint and Format Checks
 
 on:
   push:
     branches: [master]
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
   workflow_dispatch:
 
 jobs:
-  check:
-    name: Lint
+  lint_and_format_check:
+    name: Lint and Format Checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
