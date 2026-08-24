@@ -8,28 +8,28 @@ import type { NoteTypeConfig } from './types';
  * stub instead of Obsidian's `window.moment`.
  */
 export interface MomentLike {
-    format: (format: string) => string;
+  format: (format: string) => string;
 }
 
 /** Minimal vault surface used by the path helpers (real `App.vault` satisfies it). */
 export interface VaultLike {
-    getAbstractFileByPath(path: string): unknown;
-    createFolder(path: string): Promise<unknown>;
+  getAbstractFileByPath(path: string): unknown;
+  createFolder(path: string): Promise<unknown>;
 }
 
 /** Minimal app surface used by the path helpers (real `App` satisfies it). */
 export interface AppLike {
-    vault: VaultLike;
+  vault: VaultLike;
 }
 
 /** Minimal metadataCache surface used by getTemplateContents. */
 interface TemplateMetadataCacheLike {
-    getFirstLinkpathDest(path: string, sourcePath: string): unknown;
+  getFirstLinkpathDest(path: string, sourcePath: string): unknown;
 }
 
 /** Minimal vault surface used by getTemplateContents. */
 interface TemplateVaultLike {
-    cachedRead(file: unknown): Promise<string>;
+  cachedRead(file: unknown): Promise<string>;
 }
 
 /**
@@ -39,9 +39,9 @@ interface TemplateVaultLike {
  * optional member that the real object satisfies structurally.
  */
 export interface TemplateAppLike {
-    metadataCache: TemplateMetadataCacheLike;
-    vault: TemplateVaultLike;
-    plugins?: { plugins?: Record<string, unknown> };
+  metadataCache: TemplateMetadataCacheLike;
+  vault: TemplateVaultLike;
+  plugins?: { plugins?: Record<string, unknown> };
 }
 
 /**
@@ -49,11 +49,11 @@ export interface TemplateAppLike {
  * Edge slashes are trimmed per segment so empty/root folders join cleanly.
  */
 function joinPosix(...parts: string[]): string {
-    return parts
-        .filter(part => part !== '')
-        .map(part => part.replace(/^\/+|\/+$/g, ''))
-        .filter(part => part !== '')
-        .join('/');
+  return parts
+    .filter(part => part !== '')
+    .map(part => part.replace(/^\/+|\/+$/g, ''))
+    .filter(part => part !== '')
+    .join('/');
 }
 
 /**
@@ -64,10 +64,10 @@ function joinPosix(...parts: string[]): string {
  * rendered-path collision guard all flow through this one helper.
  */
 function normalizePath(path: string): string {
-    return path
-        .replace(/\\/g, '/')
-        .replace(/\/{2,}/g, '/')
-        .replace(/^\/+|\/+$/g, '');
+  return path
+    .replace(/\\/g, '/')
+    .replace(/\/{2,}/g, '/')
+    .replace(/^\/+|\/+$/g, '');
 }
 
 /**
@@ -76,7 +76,7 @@ function normalizePath(path: string): string {
  * must both use this so guard and runtime can never disagree.
  */
 export function resolveNotePath(folder: string, filename: string): string {
-    return normalizePath(joinPosix(folder, `${filename}.md`));
+  return normalizePath(joinPosix(folder, `${filename}.md`));
 }
 
 /**
@@ -84,27 +84,27 @@ export function resolveNotePath(folder: string, filename: string): string {
  * `app.vault.createFolder`. Idempotent: a path that already resolves is skipped.
  */
 export async function ensureFolderExists(app: AppLike, path: string): Promise<void> {
-    const dirs = path.split('/');
-    dirs.pop(); // the final segment is the file name
-    let dirPath = '';
-    for (const dir of dirs) {
-        if (dir === '') continue;
-        dirPath = dirPath === '' ? dir : `${dirPath}/${dir}`;
-        if (!app.vault.getAbstractFileByPath(dirPath)) {
-            await app.vault.createFolder(dirPath);
-        }
+  const dirs = path.split('/');
+  dirs.pop(); // the final segment is the file name
+  let dirPath = '';
+  for (const dir of dirs) {
+    if (dir === '') continue;
+    dirPath = dirPath === '' ? dir : `${dirPath}/${dir}`;
+    if (!app.vault.getAbstractFileByPath(dirPath)) {
+      await app.vault.createFolder(dirPath);
     }
+  }
 }
 
 /** Resolve and ensure the folder for a note, returning its vault path. */
 export async function getNotePath(
-    app: AppLike,
-    filename: string,
-    type: Pick<NoteTypeConfig, 'folder'>,
+  app: AppLike,
+  filename: string,
+  type: Pick<NoteTypeConfig, 'folder'>,
 ): Promise<string> {
-    const path = resolveNotePath(type.folder, filename);
-    await ensureFolderExists(app, path);
-    return path;
+  const path = resolveNotePath(type.folder, filename);
+  await ensureFolderExists(app, path);
+  return path;
 }
 
 /**
@@ -114,10 +114,10 @@ export async function getNotePath(
  * the guaranteed render path — Templater feature-detect never replaces it.
  */
 export function applyTemplateTransformations(filename: string, date: MomentLike, templateContents: string): string {
-    return templateContents
-        .replace(/{{\s*date\s*}}/gi, filename)
-        .replace(/{{\s*time\s*}}/gi, date.format('HH:mm'))
-        .replace(/{{\s*title\s*}}/gi, filename);
+  return templateContents
+    .replace(/{{\s*date\s*}}/gi, filename)
+    .replace(/{{\s*time\s*}}/gi, date.format('HH:mm'))
+    .replace(/{{\s*title\s*}}/gi, filename);
 }
 
 /**
@@ -126,7 +126,7 @@ export function applyTemplateTransformations(filename: string, date: MomentLike,
  * only read its presence — never its internals parsing or its data.
  */
 export function isTemplaterAvailable(app: TemplateAppLike): boolean {
-    return app.plugins?.plugins?.['obsidian-templater'] != null;
+  return app.plugins?.plugins?.['obsidian-templater'] != null;
 }
 
 /**
@@ -139,20 +139,20 @@ export function isTemplaterAvailable(app: TemplateAppLike): boolean {
  * so the caller always falls back to its own token substitution.
  */
 async function renderWithTemplater(app: TemplateAppLike, content: string): Promise<string> {
-    if (!isTemplaterAvailable(app)) return '';
-    const templater = (
-        app.plugins?.plugins?.['obsidian-templater'] as
-            { templater?: { parse_template?: (config: unknown, content: string) => Promise<string> } } | undefined
-    )?.templater;
-    const render = templater?.parse_template;
-    if (typeof render !== 'function') return '';
-    try {
-        const result = await render({}, content);
-        if (typeof result === 'string' && result !== '' && result !== content) return result;
-        return '';
-    } catch {
-        return '';
-    }
+  if (!isTemplaterAvailable(app)) return '';
+  const templater = (
+    app.plugins?.plugins?.['obsidian-templater'] as
+      { templater?: { parse_template?: (config: unknown, content: string) => Promise<string> } } | undefined
+  )?.templater;
+  const render = templater?.parse_template;
+  if (typeof render !== 'function') return '';
+  try {
+    const result = await render({}, content);
+    if (typeof result === 'string' && result !== '' && result !== content) return result;
+    return '';
+  } catch {
+    return '';
+  }
 }
 
 /**
@@ -164,13 +164,13 @@ async function renderWithTemplater(app: TemplateAppLike, content: string): Promi
  * itself on file creation via its trigger-on-file-creation hook.)
  */
 export async function renderNoteTemplate(
-    app: TemplateAppLike,
-    filename: string,
-    date: MomentLike,
-    templateContents: string,
+  app: TemplateAppLike,
+  filename: string,
+  date: MomentLike,
+  templateContents: string,
 ): Promise<string> {
-    const templated = await renderWithTemplater(app, templateContents);
-    return applyTemplateTransformations(filename, date, templated || templateContents);
+  const templated = await renderWithTemplater(app, templateContents);
+  return applyTemplateTransformations(filename, date, templated || templateContents);
 }
 
 /**
@@ -178,18 +178,18 @@ export async function renderNoteTemplate(
  * cannot be resolved, or reading fails (a Notice is shown in those cases).
  */
 export async function getTemplateContents(app: TemplateAppLike, templatePath: string): Promise<string> {
-    if (templatePath === '' || templatePath === '/') return '';
-    const file = app.metadataCache.getFirstLinkpathDest(obsidianNormalizePath(templatePath), '');
-    if (!file) {
-        new Notice(`Failed to read the template '${templatePath}'`);
-        return '';
-    }
-    try {
-        return await app.vault.cachedRead(file);
-    } catch {
-        new Notice(`Failed to read the template '${templatePath}'`);
-        return '';
-    }
+  if (templatePath === '' || templatePath === '/') return '';
+  const file = app.metadataCache.getFirstLinkpathDest(obsidianNormalizePath(templatePath), '');
+  if (!file) {
+    new Notice(`Failed to read the template '${templatePath}'`);
+    return '';
+  }
+  try {
+    return await app.vault.cachedRead(file);
+  } catch {
+    new Notice(`Failed to read the template '${templatePath}'`);
+    return '';
+  }
 }
 
 /**
@@ -200,16 +200,16 @@ export async function getTemplateContents(app: TemplateAppLike, templatePath: st
  * `YYYY-MM-DD` vs monthly `YYYY-MM`) are correctly allowed.
  */
 export function findRenderedPathCollisions(types: NoteTypeConfig[]): string | null {
-    const rendered = new Map<string, NoteTypeConfig>();
-    for (const type of types) {
-        if (!type.enabled) continue;
-        const filename = (type.format || DEFAULT_FORMATS[type.granularity]).trim();
-        const path = resolveNotePath(type.folder, filename);
-        const other = rendered.get(path);
-        if (other) {
-            return `'${other.name}' and '${type.name}' both resolve to '${path}'. Give them distinct folders or filename formats.`;
-        }
-        rendered.set(path, type);
+  const rendered = new Map<string, NoteTypeConfig>();
+  for (const type of types) {
+    if (!type.enabled) continue;
+    const filename = (type.format || DEFAULT_FORMATS[type.granularity]).trim();
+    const path = resolveNotePath(type.folder, filename);
+    const other = rendered.get(path);
+    if (other) {
+      return `'${other.name}' and '${type.name}' both resolve to '${path}'. Give them distinct folders or filename formats.`;
     }
-    return null;
+    rendered.set(path, type);
+  }
+  return null;
 }

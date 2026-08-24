@@ -1,9 +1,9 @@
 {
-    "id": "periodic-types",
-    "name": "Periodic note types",
-    "version": "0.0.1",
-    "minAppVersion": "1.7.2",
-    "description": "Generate multiple independently-configurable periodic notes (work, personal, journal, ...) alongside Periodic Notes.",
-    "author": "albert118",
-    "isDesktopOnly": false
+  "id": "periodic-types",
+  "name": "Periodic note types",
+  "version": "0.0.1",
+  "minAppVersion": "1.7.2",
+  "description": "Generate multiple independently-configurable periodic notes (work, personal, journal, ...) alongside Periodic Notes.",
+  "author": "albert118",
+  "isDesktopOnly": false
 }

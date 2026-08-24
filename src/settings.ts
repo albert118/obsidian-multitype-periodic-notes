@@ -9,7 +9,7 @@ import type PeriodicTypesPlugin from './main';
 const GRANULARITIES: Granularity[] = ['day', 'week', 'month', 'quarter', 'year'];
 
 function granularityLabel(granularity: Granularity): string {
-    return `${granularity} (${DEFAULT_FORMATS[granularity]})`;
+  return `${granularity} (${DEFAULT_FORMATS[granularity]})`;
 }
 
 /**
@@ -26,211 +26,211 @@ function granularityLabel(granularity: Granularity): string {
  * definitions, which makes Obsidian fall back to `display()` on 1.13+ too).
  */
 export class NoteTypeSettingTab extends PluginSettingTab {
-    plugin: PeriodicTypesPlugin;
+  plugin: PeriodicTypesPlugin;
 
-    constructor(app: App, plugin: PeriodicTypesPlugin) {
-        super(app, plugin);
-        this.plugin = plugin;
+  constructor(app: App, plugin: PeriodicTypesPlugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+
+  /**
+   * Declarative settings surface (Obsidian 1.13+). This tab is a dynamic,
+   * user-added registry that the imperative render manages (add/delete, live
+   * onChange, collision-rejection re-render), so we deliberately return no
+   * declarative definitions — Obsidian then falls back to calling `display()`,
+   * which keeps behavior identical on every version.
+   */
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    return [];
+  }
+
+  display(): void {
+    this.renderTab();
+  }
+
+  private renderTab(): void {
+    const { containerEl } = this;
+    containerEl.empty();
+
+    new Setting(containerEl).setName('Note types').setHeading();
+
+    for (const type of this.plugin.settings.types) {
+      this.renderTypeSettings(containerEl.createDiv(), type);
     }
 
-    /**
-     * Declarative settings surface (Obsidian 1.13+). This tab is a dynamic,
-     * user-added registry that the imperative render manages (add/delete, live
-     * onChange, collision-rejection re-render), so we deliberately return no
-     * declarative definitions — Obsidian then falls back to calling `display()`,
-     * which keeps behavior identical on every version.
-     */
-    getSettingDefinitions(): SettingDefinitionItem[] {
-        return [];
-    }
+    // Trailing "Add note type" row.
+    const newName = { value: '' };
+    new Setting(containerEl)
+      .setName('Add note type')
+      .setDesc(
+        'Name a new note type. The type ID (used for commands) is derived from the name and cannot change later.',
+      )
+      .addText(text =>
+        text.setPlaceholder('E.g. Journal, meetings…').onChange(value => {
+          newName.value = value;
+        }),
+      )
+      .addButton(btn =>
+        btn
+          .setButtonText('Add')
+          .setCta()
+          .onClick(() => this.addType(newName.value)),
+      );
+  }
 
-    display(): void {
-        this.renderTab();
-    }
+  /**
+   * One settings block for `type`. `type` is the live object held in
+   * `plugin.settings.types`; mutations below write straight through to it.
+   */
+  private renderTypeSettings(parent: HTMLElement, type: NoteTypeConfig): void {
+    new Setting(parent).setName(type.name).setHeading();
+    parent.createEl('p', { text: `ID: ${type.id}` }).addClass('setting-item-description');
 
-    private renderTab(): void {
-        const { containerEl } = this;
-        containerEl.empty();
+    new Setting(parent)
+      .setName('Name')
+      .setDesc(
+        'Display name used in the settings tab and picker. Commands are labeled from the immutable ID — renaming never changes a command.',
+      )
+      .addText(text =>
+        text.setValue(type.name).onChange(async value => {
+          type.name = value;
+          await this.persist(false);
+        }),
+      );
 
-        new Setting(containerEl).setName('Note types').setHeading();
+    new Setting(parent)
+      .setName('Folder')
+      .setDesc("Vault folder for this type's notes.")
+      .addText(text =>
+        text.setValue(type.folder).onChange(async value => {
+          type.folder = value;
+          await this.persist(false);
+        }),
+      );
 
-        for (const type of this.plugin.settings.types) {
-            this.renderTypeSettings(containerEl.createDiv(), type);
-        }
+    // Live moment-format preview: the sample element renders today's date
+    // against the current value, and is created per-block so it survives the
+    // no-re-render text editing path.
+    const formatSample = parent.createSpan();
+    new Setting(parent)
+      .setName('Filename format')
+      .setDesc('Moment format for the filename. Leave blank for the granularity default.')
+      .addMomentFormat(fmt =>
+        fmt
+          .setPlaceholder(DEFAULT_FORMATS[type.granularity])
+          .setDefaultFormat(DEFAULT_FORMATS[type.granularity])
+          .setValue(type.format)
+          .setSampleEl(formatSample)
+          .onChange(async value => {
+            type.format = value;
+            await this.persist(false);
+          }),
+      );
 
-        // Trailing "Add note type" row.
-        const newName = { value: '' };
-        new Setting(containerEl)
-            .setName('Add note type')
-            .setDesc(
-                'Name a new note type. The type ID (used for commands) is derived from the name and cannot change later.',
-            )
-            .addText(text =>
-                text.setPlaceholder('E.g. Journal, meetings…').onChange(value => {
-                    newName.value = value;
-                }),
-            )
-            .addButton(btn =>
-                btn
-                    .setButtonText('Add')
-                    .setCta()
-                    .onClick(() => this.addType(newName.value)),
-            );
-    }
+    new Setting(parent)
+      .setName('Template path')
+      .setDesc('Optional vault path to a template applied to new notes.')
+      .addText(text =>
+        text.setValue(type.templatePath).onChange(async value => {
+          type.templatePath = value;
+          await this.persist(false);
+        }),
+      );
 
-    /**
-     * One settings block for `type`. `type` is the live object held in
-     * `plugin.settings.types`; mutations below write straight through to it.
-     */
-    private renderTypeSettings(parent: HTMLElement, type: NoteTypeConfig): void {
-        new Setting(parent).setName(type.name).setHeading();
-        parent.createEl('p', { text: `ID: ${type.id}` }).addClass('setting-item-description');
-
-        new Setting(parent)
-            .setName('Name')
-            .setDesc(
-                'Display name used in the settings tab and picker. Commands are labeled from the immutable ID — renaming never changes a command.',
-            )
-            .addText(text =>
-                text.setValue(type.name).onChange(async value => {
-                    type.name = value;
-                    await this.persist(false);
-                }),
-            );
-
-        new Setting(parent)
-            .setName('Folder')
-            .setDesc("Vault folder for this type's notes.")
-            .addText(text =>
-                text.setValue(type.folder).onChange(async value => {
-                    type.folder = value;
-                    await this.persist(false);
-                }),
-            );
-
-        // Live moment-format preview: the sample element renders today's date
-        // against the current value, and is created per-block so it survives the
-        // no-re-render text editing path.
-        const formatSample = parent.createSpan();
-        new Setting(parent)
-            .setName('Filename format')
-            .setDesc('Moment format for the filename. Leave blank for the granularity default.')
-            .addMomentFormat(fmt =>
-                fmt
-                    .setPlaceholder(DEFAULT_FORMATS[type.granularity])
-                    .setDefaultFormat(DEFAULT_FORMATS[type.granularity])
-                    .setValue(type.format)
-                    .setSampleEl(formatSample)
-                    .onChange(async value => {
-                        type.format = value;
-                        await this.persist(false);
-                    }),
-            );
-
-        new Setting(parent)
-            .setName('Template path')
-            .setDesc('Optional vault path to a template applied to new notes.')
-            .addText(text =>
-                text.setValue(type.templatePath).onChange(async value => {
-                    type.templatePath = value;
-                    await this.persist(false);
-                }),
-            );
-
-        new Setting(parent)
-            .setName('Granularity')
-            .setDesc('How often this note rolls over (used for the filename format default).')
-            .addDropdown(dropdown => {
-                for (const g of GRANULARITIES) dropdown.addOption(g, granularityLabel(g));
-                dropdown.setValue(type.granularity).onChange(async value => {
-                    type.granularity = value as Granularity;
-                    await this.persist(true);
-                });
-            });
-
-        new Setting(parent)
-            .setName('Enabled')
-            .setDesc("Register this type's command and allow opening notes.")
-            .addToggle(toggle =>
-                toggle.setValue(type.enabled).onChange(async value => {
-                    type.enabled = value;
-                    await this.persist(true);
-                }),
-            );
-
-        new Setting(parent)
-            .setName('Open at startup')
-            .setDesc("Open today's note for this type when Obsidian launches (but not on a plugin reload).")
-            .addToggle(toggle =>
-                toggle.setValue(type.openAtStartup).onChange(async value => {
-                    type.openAtStartup = value;
-                    await this.persist(true);
-                }),
-            );
-
-        new Setting(parent).addButton(btn => {
-            btn.setButtonText('Delete').onClick(async () => {
-                const remaining = this.plugin.settings.types.filter(t => t !== type);
-                const next = ensureNonEmptyTypes(remaining);
-                if (next !== remaining) {
-                    new Notice("All note types deleted — reset to the default 'work' type.");
-                }
-                this.plugin.settings.types = next;
-                await this.persist(true);
-            });
-            // setWarning() is deprecated in favor of setDestructive(), which
-            // requires Obsidian 1.13.0+ (above our 1.7.2 minAppVersion), so the
-            // standard warning style is applied to the public button element
-            // directly instead of through the deprecated API.
-            btn.buttonEl.addClass('mod-warning');
+    new Setting(parent)
+      .setName('Granularity')
+      .setDesc('How often this note rolls over (used for the filename format default).')
+      .addDropdown(dropdown => {
+        for (const g of GRANULARITIES) dropdown.addOption(g, granularityLabel(g));
+        dropdown.setValue(type.granularity).onChange(async value => {
+          type.granularity = value as Granularity;
+          await this.persist(true);
         });
-    }
+      });
 
-    /**
-     * Add a new type from a display name. The id is `slug(name)`; an empty slug
-     * is rejected and a duplicate id gets a numeric suffix (`work`, `work-2`, …).
-     */
-    private async addType(name: string): Promise<void> {
-        const id = resolveUniqueSlug(
-            this.plugin.settings.types.map(type => type.id),
-            name,
-        );
-        if (id === '') {
-            new Notice('Enter a name for the new note type.');
-            return;
+    new Setting(parent)
+      .setName('Enabled')
+      .setDesc("Register this type's command and allow opening notes.")
+      .addToggle(toggle =>
+        toggle.setValue(type.enabled).onChange(async value => {
+          type.enabled = value;
+          await this.persist(true);
+        }),
+      );
+
+    new Setting(parent)
+      .setName('Open at startup')
+      .setDesc("Open today's note for this type when Obsidian launches (but not on a plugin reload).")
+      .addToggle(toggle =>
+        toggle.setValue(type.openAtStartup).onChange(async value => {
+          type.openAtStartup = value;
+          await this.persist(true);
+        }),
+      );
+
+    new Setting(parent).addButton(btn => {
+      btn.setButtonText('Delete').onClick(async () => {
+        const remaining = this.plugin.settings.types.filter(t => t !== type);
+        const next = ensureNonEmptyTypes(remaining);
+        if (next !== remaining) {
+          new Notice("All note types deleted — reset to the default 'work' type.");
         }
-        this.plugin.settings.types.push({
-            ...DEFAULT_NOTE_TYPE,
-            id,
-            name: name.trim(),
-        });
+        this.plugin.settings.types = next;
         await this.persist(true);
-    }
+      });
+      // setWarning() is deprecated in favor of setDestructive(), which
+      // requires Obsidian 1.13.0+ (above our 1.7.2 minAppVersion), so the
+      // standard warning style is applied to the public button element
+      // directly instead of through the deprecated API.
+      btn.buttonEl.addClass('mod-warning');
+    });
+  }
 
-    /**
-     * Persist the current (already-mutated) settings, keep the command set in
-     * sync, and optionally re-render. Before saving, the rendered-path collision
-     * guard runs: if two ENABLED types resolve to the same note path
-     * (via the shared `findRenderedPathCollisions` helper — the same
-     * `resolveNotePath` pipeline `openNote` uses), the change is rejected —
-     * settings are reverted from disk and the tab is re-rendered, so the
-     * colliding state is never saved.
-     */
-    private async persist(rerender: boolean): Promise<void> {
-        const collision = findRenderedPathCollisions(this.plugin.settings.types);
-        if (collision) {
-            new Notice(collision);
-            await this.plugin.loadSettings();
-            this.redraw();
-            return;
-        }
-        await this.plugin.saveSettings();
-        this.plugin.configureCommands();
-        if (rerender) this.redraw();
+  /**
+   * Add a new type from a display name. The id is `slug(name)`; an empty slug
+   * is rejected and a duplicate id gets a numeric suffix (`work`, `work-2`, …).
+   */
+  private async addType(name: string): Promise<void> {
+    const id = resolveUniqueSlug(
+      this.plugin.settings.types.map(type => type.id),
+      name,
+    );
+    if (id === '') {
+      new Notice('Enter a name for the new note type.');
+      return;
     }
+    this.plugin.settings.types.push({
+      ...DEFAULT_NOTE_TYPE,
+      id,
+      name: name.trim(),
+    });
+    await this.persist(true);
+  }
 
-    /** Re-render the registry tab in place (add/delete/collision rejection). */
-    private redraw(): void {
-        this.renderTab();
+  /**
+   * Persist the current (already-mutated) settings, keep the command set in
+   * sync, and optionally re-render. Before saving, the rendered-path collision
+   * guard runs: if two ENABLED types resolve to the same note path
+   * (via the shared `findRenderedPathCollisions` helper — the same
+   * `resolveNotePath` pipeline `openNote` uses), the change is rejected —
+   * settings are reverted from disk and the tab is re-rendered, so the
+   * colliding state is never saved.
+   */
+  private async persist(rerender: boolean): Promise<void> {
+    const collision = findRenderedPathCollisions(this.plugin.settings.types);
+    if (collision) {
+      new Notice(collision);
+      await this.plugin.loadSettings();
+      this.redraw();
+      return;
     }
+    await this.plugin.saveSettings();
+    this.plugin.configureCommands();
+    if (rerender) this.redraw();
+  }
+
+  /** Re-render the registry tab in place (add/delete/collision rejection). */
+  private redraw(): void {
+    this.renderTab();
+  }
 }
