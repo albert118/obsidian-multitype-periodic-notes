@@ -1,41 +1,45 @@
 import obsidianmd from 'eslint-plugin-obsidianmd';
 import globals from 'globals';
 import { globalIgnores, defineConfig } from 'eslint/config';
+import tseslint from 'typescript-eslint';
+import js from '@eslint/js';
+import eslintConfigPrettier from 'eslint-config-prettier';
 
 export default defineConfig(
     globalIgnores([
         'node_modules',
         'dist',
-        'esbuild.config.mjs',
+        '.github',
+        'esbuild.config.mts',
+        'esbuild.build.mjs',
         'version-bump.mjs',
         'versions.json',
-        'main.js',
         'package.json',
         'package-lock.json',
         'tsconfig.json',
-        'eslint.config.mts',
-        '*.spec.ts',
+        'tests/*.spec.ts',
     ]),
+    js.configs.recommended,
+    eslintConfigPrettier,
+    ...tseslint.configs.strictTypeChecked,
+    ...tseslint.configs.stylisticTypeChecked,
+    ...obsidianmd.configs.recommended,
     {
+        files: ['src/**/*.{js,ts}'],
         languageOptions: {
             globals: {
                 ...globals.browser,
+                ...globals.node,
             },
             parserOptions: {
-                projectService: {
-                    allowDefaultProject: ['eslint.config.mts', 'manifest.json', 'vitest.config.ts', 'tests/*.spec.ts'],
-                },
-                // @ts-ignore
+                projectService: true, // Automatically handles tsconfig.json mapping
                 tsconfigRootDir: import.meta.dirname,
+                // projectService: {
+                //     allowDefaultProject: ['eslint.config.mjs', 'manifest.json', 'vitest.config.ts', 'main.ts'],
+                // },
                 extraFileExtensions: ['.json'],
             },
         },
-    },
-    ...obsidianmd.configs.recommended,
-    {
-        // Stage 0 stub deliberately emits both a Notice and a console marker for
-        // the manual disable/enable check; permit the console log in this file.
-        files: ['src/main.ts'],
         rules: {
             'obsidianmd/rule-custom-message': 'off',
         },
