@@ -1,0 +1,25 @@
+name: Lint and Format Check
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Typescript lint
+        working-directory: .
+        run: npm run lint
+
+      - name: Prettier check
+        working-directory: .
+        run: npm run format:check
