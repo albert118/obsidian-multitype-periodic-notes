@@ -16,6 +16,9 @@ jobs:
         with:
           node-version: 24
 
+      - name: Install node modules
+        run: npm ci --cache --prefer-offline --no-audit
+
       - name: Typescript lint
         working-directory: .
         run: npm run lint
