@@ -36,6 +36,12 @@ export default defineConfig(
     },
     rules: {
       'obsidianmd/rule-custom-message': 'off',
+      '@typescript-eslint/restrict-template-expressions': [
+        'error',
+        {
+          allowNumber: true,
+        },
+      ],
     },
   },
 );

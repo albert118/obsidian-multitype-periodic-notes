@@ -4,7 +4,7 @@ import type PeriodicTypesPlugin from './main';
 import type { NoteTypeConfig } from './types';
 
 /** Period choices offered once a type is selected. */
-const PERIODS: ReadonlyArray<{ delta: number; label: (granularity: string) => string }> = [
+const PERIODS: readonly { delta: number; label: (granularity: string) => string }[] = [
   { delta: 0, label: () => 'Today' },
   { delta: 1, label: granularity => `Next ${granularity}` },
   { delta: -1, label: granularity => `Previous ${granularity}` },

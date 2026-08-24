@@ -66,7 +66,7 @@ export default class PeriodicTypesPlugin extends Plugin {
 
   // Exactly the command ids (without the `periodic-types:` prefix) this plugin
   // currently has registered. Drives the add/remove diff in configureCommands.
-  registeredCommandIds: Set<string> = new Set();
+  registeredCommandIds: Set<string> = new Set<string>();
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -90,8 +90,6 @@ export default class PeriodicTypesPlugin extends Plugin {
       );
     }
   }
-
-  onunload() {}
 
   async loadSettings(): Promise<void> {
     const data = (await this.loadData()) as Partial<PluginSettings> | undefined;
@@ -197,7 +195,7 @@ export default class PeriodicTypesPlugin extends Plugin {
         }
       }
       // createNote may have raced and failed-as-already-exists → re-fetch.
-      if (!file) file = this.app.vault.getAbstractFileByPath(path);
+      file ??= this.app.vault.getAbstractFileByPath(path);
     }
 
     // Guard against a FOLDER occupying the path (upgraded from a silent no-op).
