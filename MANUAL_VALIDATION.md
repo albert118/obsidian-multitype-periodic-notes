@@ -31,8 +31,7 @@ builds — if the stub toast is gone, that's expected).
 
 - [ ] Add a third type via settings → its "Open today's…" command appears without
       app reload; previously-added commands unchanged.
-- [ ] Rename a type's `name` → command **id AND label** unchanged (`Open today's
-  work note`, named from the immutable id — by design).
+- [ ] Rename a type's `name` → command **id AND label** unchanged (`Open today's work note`, named from the immutable id — by design).
 - [ ] Delete a type → its command disappears from the palette, no orphan.
 - [ ] Disable a type → its command disappears.
 - [ ] Add a type with an empty name → blocked with a Notice.
