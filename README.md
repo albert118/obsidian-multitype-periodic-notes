@@ -11,7 +11,7 @@ setup.
 
 1. `npm install && npm run build` (requires Node ≥ 20).
 2. Copy `main.js`, `manifest.json`, `styles.css` into
-   `<vault>/.obsidian/plugins/periodic-types/`.
+   `<vault>/.obsidian/plugins/obsidian-multitype-periodic-notes/`.
 3. Enable it in **Settings → Community plugins**.
 
 Requires Obsidian ≥ 1.7.2.

@@ -10,6 +10,7 @@
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"clean": "rmdir /s /q dist",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"lint": "npx --node-options='--experimental-strip-types' eslint --flag unstable_native_nodejs_ts_config .",
 		"lint:inspect-config": "npx --node-options='--experimental-strip-types' eslint --flag unstable_native_nodejs_ts_config . --inspect-config --debug",
