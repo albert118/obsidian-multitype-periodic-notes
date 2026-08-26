@@ -11,7 +11,7 @@ export default defineConfig(
     'dist',
     '.github',
     'eslint.config.mjs',
-    'esbuild.build.mjs',
+    'esbuild.config.mjs',
     'version-bump.mjs',
     'versions.json',
     'package.json',
